@@ -1,21 +1,34 @@
 import tensorflow as tf
-from sklearn import metrics
-import numpy as np
+from tensorflow.contrib.learn.python.learn.metric_spec import MetricSpec
+import tensorflow.contrib.metrics as tfmetrics
 import cPickle
 import gzip
 
-tf.logging.set_verbosity(tf.logging.INFO)
+# Set logging for removal of SKLearn compatibility issues.
+from logging import StreamHandler, INFO, getLogger
+
+logger = getLogger('tensorflow')
+logger.removeHandler(logger.handlers[0])
+
+logger.setLevel(INFO)
+
+
+class DebugFileHandler(StreamHandler):
+    def __init__(self):
+        StreamHandler.__init__(self)
+
+    def emit(self, record):
+        if not record.levelno == INFO:
+            return
+        StreamHandler.emit(self, record)
+
+logger.addHandler(DebugFileHandler())
+
+# tf.logging.set_verbosity(tf.logging.INFO)
 
 # Read Data
-# Use this when lecunn's website is back up
-# mnist = learn.datasets.load_dataset('mnist')
-
 f = gzip.open('mnist.pkl.gz', 'rb')
 train_set, valid_set, test_set = cPickle.load(f)
-
-print np.shape(test_set[0])
-print np.shape(test_set[1])
-
 f.close()
 
 # Model Training
@@ -41,6 +54,6 @@ classifier.fit(x=train_set[0],
                monitors=[validation_monitor])
 
 # Model Testing
-score = metrics.accuracy_score(test_set[1],
-                               list(classifier.predict(test_set[0])))
-print('Accuracy: {0:f}'.format(score))
+score = classifier.evaluate(x=test_set[0], y=test_set[1])
+
+print('Accuracy: {0:f}'.format(score['accuracy']))

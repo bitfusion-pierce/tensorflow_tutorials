@@ -2,24 +2,32 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 import tensorflow.contrib.learn as learn
 from tensorflow.contrib.learn.python.learn.metric_spec import MetricSpec
-from tensorflow.contrib.learn.python.learn import Estimator, SKCompat
 import tensorflow.contrib.metrics as tfmetrics
-import numpy as np
 import cPickle
 import gzip
 
-tf.logging.set_verbosity(tf.logging.INFO)
+from logging import StreamHandler, INFO, getLogger
+
+logger = getLogger('tensorflow')
+logger.removeHandler(logger.handlers[0])
+
+logger.setLevel(INFO)
+
+
+class DebugFileHandler(StreamHandler):
+    def __init__(self):
+        StreamHandler.__init__(self)
+
+    def emit(self, record):
+        if not record.levelno == INFO:
+            return
+        StreamHandler.emit(self, record)
+
+logger.addHandler(DebugFileHandler())
 
 # Read Data
-# Use this when lecunn's website is back up
-# mnist = learn.datasets.load_dataset('mnist')
-
 f = gzip.open('mnist.pkl.gz', 'rb')
 train_set, valid_set, test_set = cPickle.load(f)
-
-print np.shape(test_set[0])
-print np.shape(test_set[1])
-
 f.close()
 
 
@@ -28,9 +36,9 @@ def fully_connected_model(features, labels):
     features = layers.flatten(features)
     labels = tf.one_hot(tf.cast(labels, tf.int32), 10, 1, 0)
 
-    layer1 = layers.fully_connected(features, 512, activation_fn=tf.nn.relu)
-    layer2 = layers.fully_connected(layer1, 128, activation_fn=tf.nn.relu)
-    logits = layers.fully_connected(layer2, 10, activation_fn=None)
+    layer1 = layers.fully_connected(features, 512, activation_fn=tf.nn.relu, scope='fc1')
+    layer2 = layers.fully_connected(layer1, 128, activation_fn=tf.nn.relu, scope='fc2')
+    logits = layers.fully_connected(layer2, 10, activation_fn=None, scope='out')
 
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels))
 
@@ -50,7 +58,7 @@ validation_monitor = tf.contrib.learn.monitors.ValidationMonitor(
     metrics={'accuracy': MetricSpec(tfmetrics.streaming_accuracy)},
     every_n_steps=500)
 
-classifier = Estimator(model_fn=fully_connected_model,
+classifier = learn.Estimator(model_fn=fully_connected_model,
                        model_dir="./output",
                        config=tf.contrib.learn.RunConfig(save_checkpoints_secs=10))
 
