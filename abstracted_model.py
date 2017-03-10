@@ -55,5 +55,4 @@ classifier.fit(x=train_set[0],
 
 # Model Testing
 score = classifier.evaluate(x=test_set[0], y=test_set[1])
-
 print('Accuracy: {0:f}'.format(score['accuracy']))
